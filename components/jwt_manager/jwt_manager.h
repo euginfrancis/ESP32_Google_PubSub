@@ -36,7 +36,9 @@
 #define CREATE_CHAR_BUFFER(size) ((char *)malloc(size)) 
 #define ERROR_BUFFER_SIZE 100
 
-static const char base64EncBuff[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+static const char base64EncBuffUrl[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+static const char base64EncBuffData[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 static const char googleapis_auth_url[] = "https://www.googleapis.com/oauth2/v4/token";
 static const char googleapis_auth2_url[] = "https://oauth2.googleapis.com/token";
 static const char googleapis_scope_url[] = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email";
@@ -168,8 +170,8 @@ typedef struct JWTConfig{
     jwt_generation_steps step;
 } JWTConfig;
 
-void init_JWT_Auth(JWTConfig *myConfig);
-static bool concatStrings(char **str1, char *str2);
+static void init_JWT_Auth(JWTConfig *myConfig);
+bool concatStrings(char **str1, char *str2);
 JWTConfig *new_JWTConfig();
 void exchangeJwtForAccessToken(JWTConfig *myConfig);
 void jwt_encoded_genrate_header(JWTConfig *myConfig);
@@ -177,8 +179,10 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig);
 void jwt_gen_hash(JWTConfig *myConfig);
 void sign_jwt(JWTConfig *myConfig);
 static time_t getTime();
-static bool encodeUrl(char *encoded, unsigned char *string, size_t len);
+static bool encodeBase64(char *encoded, unsigned char *string, size_t len,char *base64EncBuff);
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt);
-int mbedtls_error_log(int error);
-
+static int mbedtls_error_log(int error);
+char * base64encodeUrl(unsigned char *input, size_t length);
+static char* base64_encode(unsigned char *input, size_t length,bool url);
+char * base64encodeData(unsigned char *input, size_t length);
 #endif 

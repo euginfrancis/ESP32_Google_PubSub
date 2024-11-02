@@ -1,5 +1,5 @@
 [wokwi]
 version = 1
-elf = "build/EPS32_JWT_Auth.elf"
-firmware = "build/EPS32_JWT_Auth.bin"
+elf = "build/Google_PubSub.elf"
+firmware = "build/Google_PubSub.bin"
 gdbServerPort=3333

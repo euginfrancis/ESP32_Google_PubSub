@@ -1,6 +1,105 @@
 #include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "esp_err.h"
+#include "nvs_flash.h"
+#include "wifi_manager.h"  
+#include "jwt_manager.h"
+#include "PubSub.h"
+#include <stdio.h>
 
-void app_main(void)
-{
+#define CLIENT_EMAIL "pubsub@esp32iot-438916.iam.gserviceaccount.com";   
 
+const char PRIVATE_KEY[] = "-----BEGIN PRIVATE KEY-----\n"
+                                  "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCtFXIzkl6qMDh7\n"
+                                  "Kmx0/ldMpvOL1sSUqKIN95+UeTbjQwRE5e/W142psJMttAHdsy1DsCAE4U5Jj/2L\n"
+                                  "+wWbt4F8eYls9nIlQIdKRrlJnfPsL6AYicfAkj1W/uoz9ZkZgEkbtr4hEoyVAJJF\n"
+                                  "w7fvnTKkT9Q12IZhX3n2OAricf3pMUprGBSQi2ncgGN1fDFBM9cf90zUVOQlOjdi\n"
+                                  "rBo9Y584jKNPvuZDFlPfGZuspPsNFmhz+5xjVlbSQiojACAjeaoVt2LC+xc4gjX3\n"
+                                  "nKJfUfGgjFR60JxqGVK81iKP2IXIAR520nG+5M20RR664ympdvUq4Sd5kk7RR0UQ\n"
+                                  "LO3MsTrzAgMBAAECggEAQF3dXnhsY/YSyxr3wnpjlMnxgGuaJ36e5XrVCa4aT2G4\n"
+                                  "0LaB/u+iaxyTX0e1+fCMQMPa5HW1W34E2G29pC8WJGg+RxtPT7MznNe4SDxJXehI\n"
+                                  "LVfvxRmdXiDmj/Qhv24JwhivlDUFutO/kdo7KQzYrGpTjMK9FrEe9gXZZmTl/DYO\n"
+                                  "jjQFxcyu0VM5eiO1DzJ/qniOuKB8s3Apxee6713Fwl+zFHeWzGbZ8RY24wWDFcvD\n"
+                                  "f7cO35Pn+8pRDUbKzsOPpIlrz1Ad/SHUKNCMPhPqePD3JwM+/K0Ht0/w6vtkqz2l\n"
+                                  "/bvRJyAquey6hKrGyrcBO2GWPYoWjoJIpNzHiP2RoQKBgQDvaX4PtoWmAZ0XOyrr\n"
+                                  "Fb5u17X2L8FblnPpqs2gruNhArczO2zMfF4fgIAp5kL+Sb3Ew3jfz+MAFPIWF1JW\n"
+                                  "f06KxBkSEvwb9/iL4tHBHyplh61Kqn5rYt9slusm38zF8I+yhhVWoE7A4UeviP1U\n"
+                                  "pVC3Kum7Y87otPlE9TX5/XwZ3QKBgQC5E3kfAhRWgoILbPnDrmzj4aa1ixTNCyxY\n"
+                                  "qZwqaLi974bPyezkqzlgnMfUagdWg+pAVBeHME6Udp5i3u8e6o+5WKp0OY4oBwVC\n"
+                                  "nIlzZQrYTdvNWpGSYPiPl73FqsprR2PLszWIqjCFeHPURPWNMjiwATKFWHA1EoGa\n"
+                                  "sGYJeISjDwKBgFoXop6bGtQLi2fwlgf9GLpxZkIMWoDyrw/hfJvY9CvPb81RsXGJ\n"
+                                  "44mLO6+IvPEgIs9ml5fxjQS83RS/FfcC1TWW8bBBgKmtuNQ7OJ+p8LRgSC/u1L/o\n"
+                                  "Zxdf+4GXemGKUyjlGCaPENO4ctd1f49Y3nTvKyGfP3+Gir8OX4+Bei/pAoGAQ42B\n"
+                                  "CzlmFQGD2AnJzIvxAOiPQfpm+ESYxi/6aVxZ+jHggh2RExIQWlw/cB/XV9PEgABx\n"
+                                  "qg2O0Q/O1gXLP/ybwypC5TNQ2PlfCSY74VvDLpqUnQru0YAFmdvoD6s8QRYIrgRW\n"
+                                  "iPCdz0nc9WDKQ+RN3qhBOXzDUAvWNJEoXVKZDy8CgYB5i8UFMpEwDRSXD3Kcwf+M\n"
+                                  "LfOqvCZRiH0jaYmE/AvkkMoPCFoNQewjOLEVP8+ty9V65e1Se3ti8TgY6hWPU+V6\n"
+                                  "RneAjDVIU39z0rmf603vNmncf69Ky8lVw2neXuY8ApGWmphTT41lcia+THjPKN+g\n"
+                                  "j6jP+daZg5uhDqjZ0Z2l/w==\n"
+                                  "-----END PRIVATE KEY-----\n";
+
+const char* projectId = "esp32iot-438916";
+const char* topicName = "Example-Topic";
+static const char *TAG = "main";
+JWTConfig *myConfig;
+
+void app_main(void) {
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    wifi_init_sta();
+
+    ESP_LOGI(TAG,"wifi connect status :%s" ,is_Wifi_Connected() ? "Connected":"Disconnected");
+
+    myConfig = new_JWTConfig();
+
+    if(myConfig == NULL){
+        ESP_LOGE(TAG, "Failed to allocate memory for JWTConfig");
+    }else{
+        myConfig->init_JWT_Auth(myConfig);
+        myConfig->client_email = CLIENT_EMAIL;
+        myConfig->hashSize = 32;
+        myConfig->signatureSize = 256;
+        myConfig->private_key = PRIVATE_KEY;
+
+        while(myConfig->step != step_valid_token_generated){
+            switch (myConfig->step)
+            {
+                case step_jwt_encoded_genrate_header:
+                    jwt_encoded_genrate_header(myConfig);  
+                break;
+                case step_jwt_encoded_genrate_payload:
+                    jwt_encoded_genrate_payload(myConfig);
+                break;
+                case step_jwt_gen_hash:
+                    jwt_gen_hash(myConfig);  
+                break;
+                case step_sign_jwt:
+                    sign_jwt(myConfig);  
+                break;
+                case step_exchangeJwtForAccessToken:
+                    exchangeJwtForAccessToken(myConfig); 
+                break;
+                case step_valid_token_generated:
+                    ;
+                break;
+            }
+        }      
+    }
+    if(step_valid_token_generated){
+        PubSubMessage myMsg;
+        myMsg.projectId = projectId;
+        myMsg.topicName = topicName;
+        myMsg.message = "This is a test message";
+        postMessage(myConfig->Access_Token,&myMsg);
+    }
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(1000));  
+    }
 }

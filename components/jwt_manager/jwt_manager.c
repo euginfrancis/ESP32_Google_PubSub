@@ -24,7 +24,6 @@
  * SOFTWARE.
  *
  */
-
 #include <stdio.h>
 #include <string.h>
 #include "esp_sntp.h"
@@ -37,7 +36,6 @@
 #include "mbedtls/sha256.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/md.h"
-#include "mbedtls/base64.h"
 #include "mbedtls/error.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -46,42 +44,11 @@
 #include "esp_system.h" 
 #include "esp_mac.h"
 #include "esp_err.h"
+#include <esp_crt_bundle.h>
 
 static const char *TAG = "JWTManager";
-const char *cacert = "-----BEGIN CERTIFICATE-----\n"
-                    "MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw\n"
-                    "CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU\n"
-                    "MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw\n"
-                    "MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp\n"
-                    "Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA\n"
-                    "A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo\n"
-                    "27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w\n"
-                    "Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw\n"
-                    "TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl\n"
-                    "qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH\n"
-                    "szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8\n"
-                    "Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk\n"
-                    "MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92\n"
-                    "wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p\n"
-                    "aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN\n"
-                    "VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID\n"
-                    "AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E\n"
-                    "FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb\n"
-                    "C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe\n"
-                    "QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy\n"
-                    "h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4\n"
-                    "7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J\n"
-                    "ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef\n"
-                    "MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/\n"
-                    "Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT\n"
-                    "6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ\n"
-                    "0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm\n"
-                    "2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb\n"
-                    "bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c\n"
-                    "-----END CERTIFICATE-----\n";
 
-
-static bool encodeUrl(char *encoded, unsigned char *string, size_t len)
+static bool encodeBase64(char *encoded, unsigned char *string, size_t len,char *base64EncBuff)
 {
     size_t i;
     char *p = encoded;
@@ -110,7 +77,7 @@ static bool encodeUrl(char *encoded, unsigned char *string, size_t len)
     return true;
 }
 
-static bool concatStrings(char **str1, char *str2) {
+bool concatStrings(char **str1, char *str2) {
     
     if (str2 == NULL) {
         ESP_LOGI(TAG, "concatStrings: str2 is null");
@@ -138,7 +105,7 @@ JWTConfig *new_JWTConfig() {
     myConfig->init_JWT_Auth = init_JWT_Auth;
     return myConfig;
 }
-void init_JWT_Auth(JWTConfig *myConfig){
+static void init_JWT_Auth(JWTConfig *myConfig){
     if(myConfig){
         myConfig->token_error = false;
         myConfig->token_ready = false;
@@ -168,7 +135,15 @@ static time_t getTime() {
     return now; 
 }
 
-static char* base64_encode(unsigned char *input, size_t length) {
+char * base64encodeUrl(unsigned char *input, size_t length){
+    return base64_encode(input,length,true);
+}
+
+char * base64encodeData(unsigned char *input, size_t length){
+    return base64_encode(input,length,false);
+}
+
+static char* base64_encode(unsigned char *input, size_t length,bool url) {
     if(!input || length <1) return NULL;
 
     char *output = CREATE_CHAR_BUFFER(MBEDTLS_BASE64_ENCODE_OUTPUT(length));
@@ -176,7 +151,8 @@ static char* base64_encode(unsigned char *input, size_t length) {
         ESP_LOGE(TAG, "Failed to allocate memory for Base64 output");
         return NULL;
     }
-    encodeUrl(output,input,length);
+    char* base64buff = url ? base64EncBuffUrl:base64EncBuffData;
+    encodeBase64(output,input,length,base64buff);
     return output;
 }
 
@@ -198,7 +174,7 @@ void jwt_encoded_genrate_header(JWTConfig *myConfig){
         return;
     }
 
-    myConfig->jwt_components.encHeader = base64_encode((unsigned char *)myConfig->jwt_components.header, strlen(myConfig->jwt_components.header));
+    myConfig->jwt_components.encHeader = base64encodeUrl((unsigned char *)myConfig->jwt_components.header, strlen(myConfig->jwt_components.header));
     if (!myConfig->jwt_components.encHeader) {
         ESP_LOGE(TAG, "Failed to encode JSON to Base64");
         free(myConfig->jwt_components.header);
@@ -243,7 +219,7 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
         return;
     }
 
-    myConfig->jwt_components.encPayload = base64_encode((unsigned char *)myConfig->jwt_components.payload, strlen(myConfig->jwt_components.payload));
+    myConfig->jwt_components.encPayload = base64encodeUrl((unsigned char *)myConfig->jwt_components.payload, strlen(myConfig->jwt_components.payload));
     if(myConfig->jwt_components.encPayload == NULL){
         ESP_LOGE(TAG, "Failed to encode JSON to Base64");
         free(myConfig->jwt_components.payload);
@@ -262,7 +238,7 @@ void jwt_encoded_genrate_payload(JWTConfig *myConfig){
     myConfig->step = step_jwt_gen_hash;
 }
 
-int mbedtls_error_log(int error){
+static int mbedtls_error_log(int error){
     if(error < 0){
         char *error_buf = CREATE_CHAR_BUFFER(ERROR_BUFFER_SIZE);
         if(error_buf == NULL){
@@ -347,7 +323,7 @@ void sign_jwt(JWTConfig *myConfig){
     }
     
     mbedtls_pk_free(&pk);
-    myConfig->jwt_components.encSignature = base64_encode((unsigned char *)myConfig->jwt_components.signature,myConfig->signatureSize);
+    myConfig->jwt_components.encSignature = base64encodeUrl((unsigned char *)myConfig->jwt_components.signature,myConfig->signatureSize);
     free(myConfig->jwt_components.signature);
     concatStrings(&myConfig->jwt_components.jwt,myConfig->jwt_components.encSignature);
     free(myConfig->jwt_components.encSignature);
@@ -416,7 +392,16 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                 } else {
                     cJSON *nameItem = cJSON_GetObjectItem(json_response, "access_token");
                     if (nameItem != NULL && cJSON_IsString(nameItem)) {
-                        myConfig->Access_Token = cJSON_GetStringValue(nameItem);
+                        char *token = cJSON_GetStringValue(nameItem);
+                        size_t len = strlen(token);
+                        myConfig->Access_Token = (char *)malloc(sizeof(char)*len + 1);
+                        if (myConfig->Access_Token == NULL) {
+                            ESP_LOGE(TAG, "Failed to allocate memory for response");
+                            free(response_data);
+                            cJSON_Delete(json_response);
+                            return ESP_FAIL;
+                        }
+                        strcpy( myConfig->Access_Token,token);
                         ESP_LOGI(TAG, "Acces Token parsed");
                     } else {
                         ESP_LOGE(TAG, "Can't find access_token item");
@@ -446,7 +431,7 @@ void exchangeJwtForAccessToken(JWTConfig *myConfig) {
     esp_http_client_config_t config = {
         .url = googleapis_auth_url,
         .event_handler = _http_event_handler,
-        .cert_pem = cacert, 
+        .crt_bundle_attach = esp_crt_bundle_attach,
         .user_data = myConfig
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
