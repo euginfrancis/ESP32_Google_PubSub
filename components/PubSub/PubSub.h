@@ -28,14 +28,42 @@
 #define PUBSUB_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 typedef struct{
     char * topicName;
     char * projectId;
-    char * message;
-}PubSubMessage;
+    char * subscription_id;
+}PubSubTopic;
 
-void postMessage(char* access_token, PubSubMessage *myMsg);
+typedef struct{
+    char * message;
+    _Bool posted_ok;
+    _Bool posted_error;
+    char * message_id;
+}PushMessage;
+
+typedef struct {
+    char *data;
+    char *messageId;
+    char *publishTime;
+} Message;
+
+typedef struct{
+    Message * message_array;
+    _Bool received_ok;
+    _Bool received_error;
+    int msg_count;
+}PullMessage;
+
+typedef struct{
+    char *response;
+    _Bool transfer_completed;
+}httpResponse;
+
+void postMessage(char* access_token, PushMessage *myMsg,PubSubTopic *Topic);
+void pullMessages(char* access_token , PullMessage*,PubSubTopic*);
+static char *base64_decode(const char *encoded);
 
 #endif // WIFI_MANAGER_H
 

@@ -413,6 +413,8 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
                 free(response_data);
                 response_data = NULL;
                 total_len = 0;
+            }else{
+                myConfig->token_error = true;
             }
             break;
         case HTTP_EVENT_HEADERS_SENT: 
