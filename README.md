@@ -1,4 +1,5 @@
 # 🌐 ESP32 Google PubSub
+![ESP32](https://img.shields.io/badge/ESP32-Project-orange) ![License](https://img.shields.io/badge/License-MIT-blue)
 
 Welcome to the **ESP32 Google PubSub** project! 🎉 This repository is a continuation of the [ESP32 JWT Auth](https://github.com/euginfrancis/ESP32_JWT_Auth) project, where we integrate Google Pub/Sub with the ESP32 microcontroller for efficient messaging and event-driven architectures.
 
